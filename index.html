@@ -23,6 +23,33 @@
     #reply{max-width:720px; margin:18px auto 0; padding:12px 16px; color:#333}
   </style>
 </head>
+  <script>
+  // Prueba simple: envía un POST controlado al endpoint serverless
+  (function () {
+    const btn = document.getElementById('coachBtn');
+    if (!btn) { console.error('No existe #coachBtn'); return; }
+
+    btn.addEventListener('click', async (ev) => {
+      ev.preventDefault(); // por si el botón está dentro de un form
+
+      try {
+        const res = await fetch("/.netlify/functions/coachchat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "Ping de prueba desde UI" })
+        });
+
+        const text = await res.text();
+        console.log("HTTP", res.status, text);
+        alert("HTTP " + res.status);   // Muestra 200, 400, 500, etc.
+      } catch (e) {
+        console.error("Fallo de red o CORS", e);
+        alert("Error de red");
+      }
+    });
+  })();
+</script>
+
 <body>
   <header class="hero">
     <h1>Te presento a CoachChat</h1>
@@ -30,7 +57,7 @@
   </header>
 
   <div class="wrap">
-    <button id="startBtn" class="btn">🚀 Chatea aquí</button>
+    <button id="coachBtn" type="button">🚀 Chatea aquí</button>
   </div>
   <div id="reply"></div>
 
