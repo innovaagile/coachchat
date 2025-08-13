@@ -49,33 +49,30 @@
     });
   })();
 </script>
-
 <body>
   <style>
     :root{
-      --bg:#f3f4f6;          /* gris claro */
-      --card:#ffffff;        /* blanco tarjeta */
-      --border:#e5e7eb;      /* gris borde */
-      --muted:#6b7280;       /* gris texto secundario */
-      --text:#111827;        /* gris oscuro */
-      --primary:#111827;     /* botón suave (como screenshot) */
+      --bg:#f3f4f6;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --muted:#6b7280;
+      --text:#111827;
+      --primary:#0f172a;        /* color del botón como la imagen */
       --primary-hover:#0b1220;
       --chip:#f9fafb;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    .wrap{max-width:920px;margin:24px auto;padding:0 16px}   /* 2) ancho máx 920 */
     .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
     .card-body{padding:20px}
     .toolbar{display:flex;justify-content:flex-start;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
     .btn{
-      appearance:none;border:1px solid var(--border);background:#fff;color:var(--primary);
-      padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+      appearance:none;border:1px solid transparent;background:var(--primary);color:#fff;
+      padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;
     }
-    .btn:hover{border-color:#d1d5db;background:#fbfbfb}
-    .btn-primary{
-      background:#fff;color:var(--primary);border:1px solid var(--border)
-    }
+    .btn:hover{background:var(--primary-hover)}
+    .btn-secondary{background:#fff;color:var(--text);border-color:var(--border)}
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     #chat{display:flex;flex-direction:column;gap:10px;max-height:56vh;overflow:auto;padding:8px;border:1px dashed var(--border);border-radius:10px;background:#fff}
     .row{display:flex}
@@ -85,35 +82,38 @@
     }
     .mine .bubble{background:#eef2ff;border-color:#dbeafe}
     .inputbar{display:flex;gap:10px;align-items:flex-start}
-    textarea{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:10px;resize:vertical;min-height:44px;background:#fff}
+    textarea{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:10px;resize:vertical;min-height:44px;background:#fff;color:var(--text)}
+    textarea::placeholder{color:#9ca3af}  /* 5) placeholder más suave */
     .status{font-size:12px;color:var(--muted);margin-top:6px}
-    /* Estado vacío */
     .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 12px;gap:10px}
     .empty h3{margin:0;font-size:18px;color:#374151}
-    .empty p{margin:0;color:var(--muted)}
+    .empty p{margin:0;color:var(--muted);text-align:center}
     .icon{width:44px;height:44px;opacity:.8}
   </style>
 
   <div class="wrap">
     <div class="card">
       <div class="toolbar">
-        <button class="btn btn-primary" id="newChat">+ Nueva conversación</button>
+        <button class="btn btn-secondary" id="newChat">+ Nueva conversación</button>
       </div>
 
       <div class="card-body">
-        <div id="emptyState" class="empty" style="display:none">
+        <div id="emptyState" class="empty">
           <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 16a6 6 0 1 1 9.33-7.5A4.5 4.5 0 1 1 18 16H6Z" stroke="#9ca3af" stroke-width="1.5"/></svg>
           <h3>No hay mensajes</h3>
-          <p>Escribe abajo y presiona Enviar</p>
-          <button class="btn" id="ctaStart">Escribir un mensaje</button>
+          <p>Presiona abajo 👇 y presiona Enviar</p> <!-- 4) texto solicitado -->
+          <button class="btn" id="ctaStart">Start →</button> <!-- 1) botón estilo imagen -->
         </div>
 
         <div class="grid">
           <div id="chat"></div>
-          <div class="inputbar">
+
+          <!-- 3) ocultamos la barra de entrada hasta que el usuario presione Start -->
+          <div class="inputbar" id="inputBar" style="display:none">
             <textarea id="coachMsg" placeholder="Escribe aquí…"></textarea>
             <button id="coachBtn" class="btn">Enviar</button>
           </div>
+
           <div id="coachStatus" class="status"></div>
         </div>
       </div>
@@ -129,6 +129,7 @@
       const empty = document.getElementById('emptyState');
       const newChat = document.getElementById('newChat');
       const ctaStart = document.getElementById('ctaStart');
+      const inputBar = document.getElementById('inputBar');
 
       let threadId = sessionStorage.getItem('coach_thread_id') || null;
 
@@ -203,15 +204,19 @@
         chat.innerHTML = '';
         sessionStorage.removeItem('coach_thread_id');
         threadId = null;
+        inputBar.style.display = 'none';   // vuelve a ocultar la entrada
         toggleEmpty();
+      });
+
+      ctaStart.addEventListener('click', ()=>{
+        inputBar.style.display = 'flex';   // muestra la entrada al presionar Start
         field.focus();
       });
-      ctaStart.addEventListener('click', ()=> field.focus());
 
       toggleEmpty();
     })();
   </script>
 </body>
+
+
 </html>
-
-
