@@ -118,7 +118,8 @@ exports.handler = async (event) => {
 function authHeaders() {
   return {
     "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "OpenAI-Beta": "assistants=v2"
   };
 }
 
