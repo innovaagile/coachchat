@@ -50,47 +50,71 @@
   })();
 </script>
 
-<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px;">
-  <header style="max-width:980px; margin:0 auto 16px;">
-    <h1 style="margin:0 0 8px;">Te presento a CoachChat</h1>
-    <p style="margin:0 0 16px;">Si tienes dudas o quieres profundizar en algo aprieta el botón de abajo 👇</p>
-  </header>
+<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#fafafa;">
+  <div style="max-width:980px; margin:0 auto; padding:24px;">
+    <header style="margin-bottom:16px;">
+      <h1 style="margin:0 0 8px;">Te presento a CoachChat</h1>
+      <p style="margin:0 0 16px;">Si tienes dudas o quieres profundizar en algo, escribe abajo y envía</p>
+    </header>
 
-  <main style="max-width:980px; margin:0 auto;">
-    <button id="coachBtn" type="button" style="display:block; margin:16px auto; padding:12px 18px; font-size:16px; border-radius:10px; border:1px solid #ddd; cursor:pointer;">
-      🚀 Chatea aquí
-    </button>
+    <section style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
+      <label for="coachMsg" style="display:block; margin-bottom:8px; font-weight:600;">Tu mensaje</label>
+      <textarea id="coachMsg" rows="4" placeholder="Escribe aquí..." style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; resize:vertical;"></textarea>
 
-    <pre id="coachOut" style="white-space:pre-wrap; background:#f7f7f7; padding:16px; border-radius:10px; min-height:120px; border:1px solid #eee;"></pre>
-  </main>
+      <div style="display:flex; gap:12px; align-items:center; margin-top:12px;">
+        <button id="coachBtn" type="button" style="padding:10px 16px; border-radius:10px; border:1px solid #ddd; cursor:pointer;">
+          🚀 Enviar a CoachChat
+        </button>
+        <span id="coachStatus" style="font-size:14px; color:#666;"></span>
+      </div>
 
-  <!-- Script de prueba POST controlado -->
+      <h3 style="margin:16px 0 8px;">Respuesta</h3>
+      <div id="coachOut" style="white-space:pre-wrap; background:#f7f7f7; padding:16px; border-radius:10px; border:1px solid #eee; min-height:120px;"></div>
+    </section>
+  </div>
+
   <script>
     (function () {
       const btn = document.getElementById('coachBtn');
       const out = document.getElementById('coachOut');
-      if (!btn) { console.error('No existe #coachBtn'); return; }
+      const field = document.getElementById('coachMsg');
+      const status = document.getElementById('coachStatus');
 
-      btn.addEventListener('click', async (ev) => {
-        ev.preventDefault();
-        out.textContent = 'Enviando...';
-
+      async function enviar(message) {
+        status.textContent = 'Enviando...';
+        out.textContent = '';
         try {
           const res = await fetch("/.netlify/functions/coachchat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: "Ping de prueba desde UI" })
+            body: JSON.stringify({ message })
           });
+          const data = await res.json().catch(() => null);
 
-          const text = await res.text();
-          console.log("HTTP", res.status, text);
-          out.textContent = "HTTP " + res.status + "\n\n" + text;
-          alert("HTTP " + res.status);
+          if (!res.ok) {
+            const fallback = (data && (data.error || data.detail?.message)) || ('HTTP ' + res.status);
+            out.textContent = 'Error: ' + fallback;
+            status.textContent = '';
+            return;
+          }
+
+          // La función devuelve { reply: "..." }
+          const reply = data && data.reply ? data.reply : JSON.stringify(data);
+          out.textContent = reply;
+          status.textContent = 'Listo';
         } catch (e) {
-          console.error("Fallo de red o CORS", e);
-          out.textContent = "Error de red";
-          alert("Error de red");
+          out.textContent = 'Error de red';
+          status.textContent = '';
         }
+      }
+
+      btn.addEventListener('click', () => {
+        const m = (field.value || '').trim();
+        if (!m) {
+          field.focus();
+          return;
+        }
+        enviar(m);
       });
     })();
   </script>
