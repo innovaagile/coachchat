@@ -50,109 +50,165 @@
   })();
 </script>
 
-<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#0f172a;">
-  <div style="max-width:980px; margin:0 auto; padding:24px; color:#f8fafc;">
-    <section style="background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px;">
-      <div id="chat" style="display:flex; flex-direction:column; gap:12px; max-height:60vh; overflow:auto; padding:8px; background:#0b1220; border-radius:12px; border:1px solid #1f2937;">
-        <!-- mensajes se insertan aquí -->
+<body>
+  <style>
+    :root{
+      --bg:#f3f4f6;          /* gris claro */
+      --card:#ffffff;        /* blanco tarjeta */
+      --border:#e5e7eb;      /* gris borde */
+      --muted:#6b7280;       /* gris texto secundario */
+      --text:#111827;        /* gris oscuro */
+      --primary:#111827;     /* botón suave (como screenshot) */
+      --primary-hover:#0b1220;
+      --chip:#f9fafb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+    .card-body{padding:20px}
+    .toolbar{display:flex;justify-content:flex-start;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+    .btn{
+      appearance:none;border:1px solid var(--border);background:#fff;color:var(--primary);
+      padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+    }
+    .btn:hover{border-color:#d1d5db;background:#fbfbfb}
+    .btn-primary{
+      background:#fff;color:var(--primary);border:1px solid var(--border)
+    }
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    #chat{display:flex;flex-direction:column;gap:10px;max-height:56vh;overflow:auto;padding:8px;border:1px dashed var(--border);border-radius:10px;background:#fff}
+    .row{display:flex}
+    .mine{justify-content:flex-end}
+    .bubble{
+      max-width:78%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.35;font-size:14px;background:var(--chip)
+    }
+    .mine .bubble{background:#eef2ff;border-color:#dbeafe}
+    .inputbar{display:flex;gap:10px;align-items:flex-start}
+    textarea{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:10px;resize:vertical;min-height:44px;background:#fff}
+    .status{font-size:12px;color:var(--muted);margin-top:6px}
+    /* Estado vacío */
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 12px;gap:10px}
+    .empty h3{margin:0;font-size:18px;color:#374151}
+    .empty p{margin:0;color:var(--muted)}
+    .icon{width:44px;height:44px;opacity:.8}
+  </style>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="toolbar">
+        <button class="btn btn-primary" id="newChat">+ Nueva conversación</button>
       </div>
 
-      <div style="display:flex; gap:10px; margin-top:12px;">
-        <textarea id="coachMsg" rows="2" placeholder="Escribe aquí…" style="flex:1; padding:12px; border:1px solid #334155; border-radius:10px; resize:vertical; background:#0f172a; color:#f8fafc;"></textarea>
-        <button id="coachBtn" type="button" style="padding:10px 16px; border-radius:10px; border:1px solid #334155; cursor:pointer; background:#22c55e; color:#0b1220; font-weight:600;">
-          Enviar
-        </button>
-      </div>
+      <div class="card-body">
+        <div id="emptyState" class="empty" style="display:none">
+          <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 16a6 6 0 1 1 9.33-7.5A4.5 4.5 0 1 1 18 16H6Z" stroke="#9ca3af" stroke-width="1.5"/></svg>
+          <h3>No hay mensajes</h3>
+          <p>Escribe abajo y presiona Enviar</p>
+          <button class="btn" id="ctaStart">Escribir un mensaje</button>
+        </div>
 
-      <div id="coachStatus" style="margin-top:8px; font-size:13px; color:#94a3b8;"></div>
-    </section>
+        <div class="grid">
+          <div id="chat"></div>
+          <div class="inputbar">
+            <textarea id="coachMsg" placeholder="Escribe aquí…"></textarea>
+            <button id="coachBtn" class="btn">Enviar</button>
+          </div>
+          <div id="coachStatus" class="status"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
-    (function () {
+    (function(){
       const chat = document.getElementById('chat');
       const field = document.getElementById('coachMsg');
       const btn = document.getElementById('coachBtn');
       const status = document.getElementById('coachStatus');
+      const empty = document.getElementById('emptyState');
+      const newChat = document.getElementById('newChat');
+      const ctaStart = document.getElementById('ctaStart');
 
-      // Persistimos threadId por sesión para mantener el contexto
       let threadId = sessionStorage.getItem('coach_thread_id') || null;
 
-      function addMsg(author, text) {
-        const wrap = document.createElement('div');
-        const mine = author === 'tú';
-        wrap.style.display = 'flex';
-        wrap.style.justifyContent = mine ? 'flex-end' : 'flex-start';
-
-        const b = document.createElement('div');
-        b.style.maxWidth = '80%';
-        b.style.whiteSpace = 'pre-wrap';
-        b.style.border = '1px solid #1f2937';
-        b.style.borderRadius = '12px';
-        b.style.padding = '10px 12px';
-        b.style.lineHeight = '1.35';
-        b.style.fontSize = '14px';
-        b.style.background = mine ? '#22c55e' : '#0f172a';
-        b.style.color = mine ? '#0b1220' : '#e5e7eb';
-        b.textContent = text;
-
-        wrap.appendChild(b);
-        chat.appendChild(wrap);
-        chat.scrollTop = chat.scrollHeight;
+      function toggleEmpty(){
+        empty.style.display = chat.children.length ? 'none' : 'flex';
       }
 
-      async function enviar(message) {
+      function addMsg(author, text){
+        const row = document.createElement('div');
+        row.className = 'row' + (author==='tú' ? ' mine' : '');
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.textContent = text;
+        row.appendChild(b);
+        chat.appendChild(row);
+        chat.scrollTop = chat.scrollHeight;
+        toggleEmpty();
+      }
+
+      async function enviar(message){
         status.textContent = 'Enviando…';
         btn.disabled = true;
 
-        try {
+        try{
           const res = await fetch('/.netlify/functions/coachchat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ message, threadId })
           });
-          const data = await res.json().catch(() => null);
+          const data = await res.json().catch(()=>null);
 
-          if (!res.ok) {
-            const fallback = (data && (data.error || data.detail?.message)) || ('HTTP ' + res.status);
-            addMsg('coach', 'Error: ' + fallback);
+          if (!res.ok){
+            const fallback = (data && (data.error || data.detail?.message)) || ('HTTP '+res.status);
+            addMsg('coach','Error: '+fallback);
             status.textContent = '';
             btn.disabled = false;
             return;
           }
 
-          // Guardar nuevo threadId si viene
-          if (data.threadId && data.threadId !== threadId) {
+          if (data.threadId && data.threadId !== threadId){
             threadId = data.threadId;
             sessionStorage.setItem('coach_thread_id', threadId);
           }
 
-          const reply = data && data.reply ? data.reply : '';
-          addMsg('coach', reply || '(sin respuesta)');
+          const reply = data && data.reply ? data.reply : '(sin respuesta)';
+          addMsg('coach', reply);
           status.textContent = 'Listo';
-        } catch (e) {
-          addMsg('coach', 'Error de red');
+        }catch(e){
+          addMsg('coach','Error de red');
           status.textContent = '';
-        } finally {
+        }finally{
           btn.disabled = false;
         }
       }
 
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', ()=>{
         const m = (field.value || '').trim();
-        if (!m) { field.focus(); return; }
+        if (!m){ field.focus(); return; }
         addMsg('tú', m);
         field.value = '';
         enviar(m);
       });
 
-      // Enter para enviar, Shift+Enter para salto de línea
-      field.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+      field.addEventListener('keydown', (e)=>{
+        if (e.key==='Enter' && !e.shiftKey){
           e.preventDefault();
           btn.click();
         }
       });
+
+      newChat.addEventListener('click', ()=>{
+        chat.innerHTML = '';
+        sessionStorage.removeItem('coach_thread_id');
+        threadId = null;
+        toggleEmpty();
+        field.focus();
+      });
+      ctaStart.addEventListener('click', ()=> field.focus());
+
+      toggleEmpty();
     })();
   </script>
 </body>
