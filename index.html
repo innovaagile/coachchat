@@ -50,71 +50,108 @@
   })();
 </script>
 
-<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#fafafa;">
-  <div style="max-width:980px; margin:0 auto; padding:24px;">
-    <header style="margin-bottom:16px;">
-      <h1 style="margin:0 0 8px;">Te presento a CoachChat</h1>
-      <p style="margin:0 0 16px;">Si tienes dudas o quieres profundizar en algo, escribe abajo y envía</p>
-    </header>
-
-    <section style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
-      <label for="coachMsg" style="display:block; margin-bottom:8px; font-weight:600;">Tu mensaje</label>
-      <textarea id="coachMsg" rows="4" placeholder="Escribe aquí..." style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; resize:vertical;"></textarea>
-
-      <div style="display:flex; gap:12px; align-items:center; margin-top:12px;">
-        <button id="coachBtn" type="button" style="padding:10px 16px; border-radius:10px; border:1px solid #ddd; cursor:pointer;">
-          🚀 Enviar a CoachChat
-        </button>
-        <span id="coachStatus" style="font-size:14px; color:#666;"></span>
+<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#0f172a;">
+  <div style="max-width:980px; margin:0 auto; padding:24px; color:#f8fafc;">
+    <section style="background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px;">
+      <div id="chat" style="display:flex; flex-direction:column; gap:12px; max-height:60vh; overflow:auto; padding:8px; background:#0b1220; border-radius:12px; border:1px solid #1f2937;">
+        <!-- mensajes se insertan aquí -->
       </div>
 
-      <h3 style="margin:16px 0 8px;">Respuesta</h3>
-      <div id="coachOut" style="white-space:pre-wrap; background:#f7f7f7; padding:16px; border-radius:10px; border:1px solid #eee; min-height:120px;"></div>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <textarea id="coachMsg" rows="2" placeholder="Escribe aquí…" style="flex:1; padding:12px; border:1px solid #334155; border-radius:10px; resize:vertical; background:#0f172a; color:#f8fafc;"></textarea>
+        <button id="coachBtn" type="button" style="padding:10px 16px; border-radius:10px; border:1px solid #334155; cursor:pointer; background:#22c55e; color:#0b1220; font-weight:600;">
+          Enviar
+        </button>
+      </div>
+
+      <div id="coachStatus" style="margin-top:8px; font-size:13px; color:#94a3b8;"></div>
     </section>
   </div>
 
   <script>
     (function () {
-      const btn = document.getElementById('coachBtn');
-      const out = document.getElementById('coachOut');
+      const chat = document.getElementById('chat');
       const field = document.getElementById('coachMsg');
+      const btn = document.getElementById('coachBtn');
       const status = document.getElementById('coachStatus');
 
+      // Persistimos threadId por sesión para mantener el contexto
+      let threadId = sessionStorage.getItem('coach_thread_id') || null;
+
+      function addMsg(author, text) {
+        const wrap = document.createElement('div');
+        const mine = author === 'tú';
+        wrap.style.display = 'flex';
+        wrap.style.justifyContent = mine ? 'flex-end' : 'flex-start';
+
+        const b = document.createElement('div');
+        b.style.maxWidth = '80%';
+        b.style.whiteSpace = 'pre-wrap';
+        b.style.border = '1px solid #1f2937';
+        b.style.borderRadius = '12px';
+        b.style.padding = '10px 12px';
+        b.style.lineHeight = '1.35';
+        b.style.fontSize = '14px';
+        b.style.background = mine ? '#22c55e' : '#0f172a';
+        b.style.color = mine ? '#0b1220' : '#e5e7eb';
+        b.textContent = text;
+
+        wrap.appendChild(b);
+        chat.appendChild(wrap);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
       async function enviar(message) {
-        status.textContent = 'Enviando...';
-        out.textContent = '';
+        status.textContent = 'Enviando…';
+        btn.disabled = true;
+
         try {
-          const res = await fetch("/.netlify/functions/coachchat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message })
+          const res = await fetch('/.netlify/functions/coachchat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, threadId })
           });
           const data = await res.json().catch(() => null);
 
           if (!res.ok) {
             const fallback = (data && (data.error || data.detail?.message)) || ('HTTP ' + res.status);
-            out.textContent = 'Error: ' + fallback;
+            addMsg('coach', 'Error: ' + fallback);
             status.textContent = '';
+            btn.disabled = false;
             return;
           }
 
-          // La función devuelve { reply: "..." }
-          const reply = data && data.reply ? data.reply : JSON.stringify(data);
-          out.textContent = reply;
+          // Guardar nuevo threadId si viene
+          if (data.threadId && data.threadId !== threadId) {
+            threadId = data.threadId;
+            sessionStorage.setItem('coach_thread_id', threadId);
+          }
+
+          const reply = data && data.reply ? data.reply : '';
+          addMsg('coach', reply || '(sin respuesta)');
           status.textContent = 'Listo';
         } catch (e) {
-          out.textContent = 'Error de red';
+          addMsg('coach', 'Error de red');
           status.textContent = '';
+        } finally {
+          btn.disabled = false;
         }
       }
 
       btn.addEventListener('click', () => {
         const m = (field.value || '').trim();
-        if (!m) {
-          field.focus();
-          return;
-        }
+        if (!m) { field.focus(); return; }
+        addMsg('tú', m);
+        field.value = '';
         enviar(m);
+      });
+
+      // Enter para enviar, Shift+Enter para salto de línea
+      field.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          btn.click();
+        }
       });
     })();
   </script>
