@@ -1,4 +1,4 @@
-// Función Netlify: CoachChat (Assistants v2 con polling y threads reutilizables)
+// Función Netlify: CoachChat (Assistants v2 con polling rápido y threads reutilizables)
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
 
@@ -65,10 +65,11 @@ exports.handler = async (event) => {
       body: JSON.stringify({ assistant_id: ASSISTANT_ID })
     });
 
-    // 4) Polling
+    // 4) Polling ACOTADO para respetar límite de Netlify (~10s)
+    //   - 16 intentos * 500ms ≈ 8s de polling
     let status = run.status;
-    const maxTries = 30;
-    const delayMs = 800;
+    const maxTries = 16;
+    const delayMs = 500;
 
     for (let i = 0; i < maxTries; i++) {
       if (status === "completed") break;
@@ -88,7 +89,8 @@ exports.handler = async (event) => {
     }
 
     if (status !== "completed") {
-      return respJSON(504, { error: "Run timeout", status, threadId });
+      // Si no alcanzó, devolveremos 202 para que el cliente pueda reintentar si quisiera
+      return respJSON(202, { error: "Run still in progress", status, threadId });
     }
 
     // 5) Leer última respuesta
@@ -148,72 +150,4 @@ function respJSON(code, obj) {
 
 function safeErr(e) {
   return { message: e?.message || "unknown", status: e?.status || null, url: e?.url || null, body: e?.body || null };
-}
-
-
-    const reply = pickAssistantReply(msgs);
-    if (!reply) return respJSON(502, { error: "No assistant reply" });
-
-    return respJSON(200, { reply });
-
-  } catch (err) {
-    // Log interno y respuesta controlada
-    console.error("CoachChat error:", err?.message || err);
-    return respJSON(500, { error: "Server error", detail: safeErr(err) });
-  }
-};
-
-// Helpers
-
-function authHeaders() {
-  return {
-    "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    "Content-Type": "application/json",
-    "OpenAI-Beta": "assistants=v2"
-  };
-}
-
-async function fetchJSON(url, opts) {
-  const res = await fetch(url, opts);
-  const text = await res.text();
-  let json;
-  try { json = JSON.parse(text); } catch { json = { _raw: text }; }
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}`);
-    err.status = res.status; err.url = url; err.body = json;
-    throw err;
-  }
-  return json;
-}
-
-function pickAssistantReply(messagesList) {
-  // Busca el último mensaje del asistente y devuelve su texto plano
-  const data = messagesList?.data || [];
-  for (const m of data) {
-    if (m.role === "assistant" && Array.isArray(m.content)) {
-      for (const c of m.content) {
-        if (c.type === "text" && c.text && c.text.value) {
-          return c.text.value;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-function respJSON(code, obj) {
-  return {
-    statusCode: code,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(obj)
-  };
-}
-
-function safeErr(e) {
-  return {
-    message: e?.message || "unknown",
-    status: e?.status || null,
-    url: e?.url || null,
-    body: e?.body || null
-  };
 }
