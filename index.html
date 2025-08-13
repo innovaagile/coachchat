@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoachChat</title>
+  <style>
+    :root { --green:#7cc33f; --text:#1b1b1b; --bg:#f6f7f9; }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text);}
+    .hero{ background:var(--green); color:#0a0a0a; padding:28px 20px; text-align:left;}
+    .hero h1{ margin:0 0 6px; font-size:28px; font-weight:800;}
+    .hero p{ margin:0; font-size:15px; opacity:.9;}
+    .wrap{ max-width:920px; margin:22px auto; padding:0 16px; display:flex; justify-content:center; }
+    .btn{
+      display:inline-flex; gap:10px; align-items:center; justify-content:center;
+      padding:14px 22px; font-size:18px; border-radius:12px; border:0;
+      background:#111; color:#fff; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.15);
+      transition:transform .05s ease-in-out, box-shadow .2s;
+    }
+    .btn:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,0,0,.18);}
+    .btn:active{ transform:translateY(0); }
+    #reply{max-width:720px; margin:18px auto 0; padding:12px 16px; color:#333}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <h1>Te presento a CoachChat</h1>
+    <p>Si tienes dudas o quieres profundizar en algo aprieta el botón de abajo 👇</p>
+  </header>
+
+  <div class="wrap">
+    <button id="startBtn" class="btn">🚀 Chatea aquí</button>
+  </div>
+  <div id="reply"></div>
+
+  <script>
+    const FN_URL = '/.netlify/functions/coachchat';
+    let threadId = null;
+
+    async function callAssistant(text) {
+      const res = await fetch(FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, threadId })
+      });
+      if (!res.ok) throw new Error('Error ' + res.status);
+      const data = await res.json();
+      threadId = data.threadId || threadId;
+      return data.reply;
+    }
+
+    const btn = document.getElementById('startBtn');
+    const out = document.getElementById('reply');
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      out.textContent = '⏳ Conectando con CoachChat…';
+      try {
+        const reply = await callAssistant('Hola, soy cliente. ¿Puedes presentarte y explicar cómo me acompañarás?');
+        out.textContent = reply;
+      } catch (e) {
+        out.textContent = 'Ups, algo falló. Revisa la función o las variables.';
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+
+
